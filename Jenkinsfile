@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = "cr.yandex/crp7mdc71bpnqapssran"  // Ваш registry_id
+        REGISTRY = "cr.yandex/crp7mdc71bpnqapssran"  // Замените на ваш registry_id
         APP_NAME = "nginx-static-app"
     }
 
@@ -11,7 +11,7 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'yandex-api-key', variable: 'API_KEY')]) {
                     script {
-                        // Безопасное получение IAM-токена
+                        // Безопасный запрос IAM-токена
                         def response = sh(
                             script: """
                                 curl -s -d '{"yandexPassportOauthToken": "${env.API_KEY}"}' \
@@ -21,7 +21,12 @@ pipeline {
                             returnStdout: true
                         )
                         
-                        // Используем readJSON из Pipeline Utility Steps
+                        // Проверка ответа
+                        if (response == null || response.isEmpty()) {
+                            error("Не удалось получить IAM-токен: пустой ответ от API")
+                        }
+                        
+                        // Парсинг JSON
                         def json = readJSON text: response
                         env.IAM_TOKEN = json.iamToken
                     }
@@ -40,7 +45,13 @@ pipeline {
         stage('Push to YCR') {
             steps {
                 script {
-                    sh(script: "echo ${env.IAM_TOKEN} | docker login cr.yandex --username iam --password-stdin", label: "Login to YCR")
+                    // Проверка токена
+                    if (env.IAM_TOKEN == null) {
+                        error("IAM_TOKEN не определен")
+                    }
+                    
+                    // Аутентификация и пуш
+                    sh "echo ${env.IAM_TOKEN} | docker login cr.yandex --username iam --password-stdin"
                     sh "docker push ${REGISTRY}/${APP_NAME}:${env.GIT_COMMIT}"
                 }
             }
