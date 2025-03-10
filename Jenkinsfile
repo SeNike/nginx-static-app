@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = "cr.yandex/<registry-id>"
+        REGISTRY = "cr.yandex/crp7mdc71bpnqapssran"
         APP_NAME = "nginx-static-app"
     }
 
