@@ -4,19 +4,30 @@ pipeline {
     environment {
         REGISTRY = "cr.yandex/crp7mdc71bpnqapssran"
         APP_NAME = "nginx-static-app"
+        API_KEY = credentials('yandex-api-key') // ID вашего API-ключа
     }
 
     stages {
-        stage('Checkout') {
+        stage('Get IAM Token') {
             steps {
-                git url: 'https://github.com/SeNike/nginx-static-app.git', branch: 'main'
+                script {
+                    // Получаем IAM-токен через API Yandex Cloud
+                    def response = sh(script: """
+                        curl -s -d '{"yandexPassportOauthToken": "${API_KEY}"}' \
+                        -H "Content-Type: application/json" \
+                        https://iam.api.cloud.yandex.net/iam/v1/tokens
+                    """, returnStdout: true)
+                    
+                    def json = readJSON text: response
+                    env.IAM_TOKEN = json.iamToken
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 script {
-                    docker.build("${REGISTRY}/${APP_NAME}:${env.GIT_COMMIT}")
+                    dockerImage = docker.build("${REGISTRY}/${APP_NAME}:${env.GIT_COMMIT}", ".")
                 }
             }
         }
@@ -24,27 +35,9 @@ pipeline {
         stage('Push to YCR') {
             steps {
                 script {
-                    docker.withRegistry('https://cr.yandex', 'ycr-credentials') {
-                        docker.image("${REGISTRY}/${APP_NAME}:${env.GIT_COMMIT}").push()
-                    }
-                }
-            }
-        }
-
-        stage('Tagged Release') {
-            when {
-                buildingTag()
-            }
-            steps {
-                script {
-                    // Пуш тегированного образа
-                    docker.image("${REGISTRY}/${APP_NAME}:${env.GIT_COMMIT}").push("${env.TAG_NAME}")
-                    
-                    // Деплой в Kubernetes
-                    sh """
-                        kubectl set image deployment/nginx-deployment \
-                        nginx=${REGISTRY}/${APP_NAME}:${env.TAG_NAME} --record
-                    """
+                    // Используем IAM-токен для аутентификации
+                    sh "echo ${env.IAM_TOKEN} | docker login cr.yandex --username iam --password-stdin"
+                    dockerImage.push()
                 }
             }
         }
