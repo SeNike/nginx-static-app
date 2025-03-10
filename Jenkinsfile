@@ -11,50 +11,50 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'yandex-api-key', variable: 'API_KEY')]) {
                     script {
-                        // Безопасный запрос IAM-токена
+                        // Получение IAM-токена
                         def response = sh(
                             script: """
-                                curl -s -d '{"yandexPassportOauthToken": "${env.API_KEY}"}' \
+                                curl -sS -d '{"yandexPassportOauthToken": "${env.API_KEY}"}' \
                                 -H "Content-Type: application/json" \
                                 https://iam.api.cloud.yandex.net/iam/v1/tokens
                             """,
                             returnStdout: true
                         )
                         
-                        // Проверка ответа
-                        if (response == null || response.isEmpty()) {
-                            error("Не удалось получить IAM-токен: пустой ответ от API")
-                        }
-                        
-                        // Парсинг JSON
+                        // Парсинг и проверка токена
                         def json = readJSON text: response
-                        env.IAM_TOKEN = json.iamToken
+                        env.IAM_TOKEN = json?.iamToken ?: error("IAM-токен не получен")
                     }
                 }
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build & Push') {
             steps {
                 script {
+                    // Сборка образа
                     docker.build("${REGISTRY}/${APP_NAME}:${env.GIT_COMMIT}", ".")
-                }
-            }
-        }
-
-        stage('Push to YCR') {
-            steps {
-                script {
-                    // Проверка токена
-                    if (env.IAM_TOKEN == null) {
-                        error("IAM_TOKEN не определен")
-                    }
                     
                     // Аутентификация и пуш
-                    sh "echo ${env.IAM_TOKEN} | docker login cr.yandex --username iam --password-stdin"
-                    sh "docker push ${REGISTRY}/${APP_NAME}:${env.GIT_COMMIT}"
+                    sh """
+                        echo "${env.IAM_TOKEN}" | \
+                        docker login cr.yandex --username iam --password-stdin
+                        
+                        docker push "${REGISTRY}/${APP_NAME}:${env.GIT_COMMIT}"
+                    """
                 }
             }
+        }
+    }
+
+    post {
+        always {
+            sh 'docker logout cr.yandex'  // Всегда выходим из реестра
+        }
+        failure {
+            emailext body: "Сборка ${env.JOB_NAME} упала!",
+                     subject: "FAILED: ${env.JOB_NAME}",
+                     to: 'dev@example.com'
         }
     }
 }
