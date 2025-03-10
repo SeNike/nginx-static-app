@@ -18,7 +18,7 @@ pipeline {
         stage('Push to YCR') {
             steps {
                 script {
-                    docker.withRegistry('https://cr.yandex', 'sa-key.json') {
+                    docker.withRegistry('https://cr.yandex', 'aukey') {
                         dockerImage.push()
                     }
                 }
