@@ -1,5 +1,5 @@
 pipeline {
-    agent any
+    agent linux
 
     environment {
         REGISTRY = "cr.yandex/<registry-id>"
