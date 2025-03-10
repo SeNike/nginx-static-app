@@ -7,34 +7,60 @@ pipeline {
     }
 
     stages {
-        stage('Build Docker Image') {
+        stage('Get IAM Token') {
             steps {
-                script {
-                    dockerImage = docker.build("${REGISTRY}/${APP_NAME}:${env.GIT_COMMIT}", ".")
-                }
-            }
-        }
-
-        stage('Push to YCR') {
-            steps {
-                script {
-                    docker.withRegistry('https://cr.yandex', 'aukey') {
-                        dockerImage.push()
+                withCredentials([string(credentialsId: 'yc-cred', variable: 'API_KEY')]) {
+                    script {
+                        // Безопасный запрос с корректным JSON
+                        def response = sh(
+                            script: """
+                                curl -sS -d '{"yandexPassportOauthToken": "${env.API_KEY}"}' \
+                                -H "Content-Type: application/json" \
+                                https://iam.api.cloud.yandex.net/iam/v1/tokens
+                            """,
+                            returnStdout: true
+                        )
+                        
+                        // Проверка ответа
+                        if (response?.trim() == "") {
+                            error("Пустой ответ от API")
+                        }
+                        
+                        try {
+                            def json = readJSON text: response
+                            env.IAM_TOKEN = json.iamToken
+                        } catch (Exception e) {
+                            error("Ошибка парсинга JSON: ${e.message}\nОтвет сервера: ${response}")
+                        }
                     }
                 }
             }
         }
 
-        stage('Tagged Release') {
-            when {
-                buildingTag()
-            }
+        stage('Build & Push') {
             steps {
                 script {
-                    dockerImage.push("${env.TAG_NAME}")
-                    sh "kubectl set image deployment/nginx-deployment nginx=${REGISTRY}/${APP_NAME}:${env.TAG_NAME}"
+                    docker.build("${REGISTRY}/${APP_NAME}:${env.GIT_COMMIT}", ".")
+                    
+                    sh """
+                        echo '${env.IAM_TOKEN}' | \
+                        docker login cr.yandex --username iam --password-stdin
+                        
+                        docker push "${REGISTRY}/${APP_NAME}:${env.GIT_COMMIT}"
+                    """
                 }
             }
+        }
+    }
+
+    post {
+        always {
+            sh 'docker logout cr.yandex'
+        }
+        failure {
+            emailext body: "Сборка ${env.JOB_NAME} упала!\nЛоги: ${env.BUILD_URL}console",
+                     subject: "FAILED: ${env.JOB_NAME}",
+                     to: 'dev@example.com'
         }
     }
 }
