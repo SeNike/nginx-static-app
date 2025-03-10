@@ -9,7 +9,7 @@ pipeline {
     stages {
         stage('Get IAM Token') {
             steps {
-                withCredentials([string(credentialsId: 'yc-cred', variable: 'API_KEY')]) {
+                withCredentials([string(credentialsId: 'yc_cred', variable: 'API_KEY')]) {
                     script {
                         // Безопасный запрос с корректным JSON
                         def response = sh(
