@@ -2,24 +2,29 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = "cr.yandex/crp7mdc71bpnqapssran"
+        REGISTRY = "cr.yandex/crp7mdc71bpnqapssran"  // Ваш registry_id
         APP_NAME = "nginx-static-app"
-        API_KEY = credentials('yandex-api-key') // ID вашего API-ключа
     }
 
     stages {
         stage('Get IAM Token') {
             steps {
-                script {
-                    // Получаем IAM-токен через API Yandex Cloud
-                    def response = sh(script: """
-                        curl -s -d '{"yandexPassportOauthToken": "${API_KEY}"}' \
-                        -H "Content-Type: application/json" \
-                        https://iam.api.cloud.yandex.net/iam/v1/tokens
-                    """, returnStdout: true)
-                    
-                    def json = readJSON text: response
-                    env.IAM_TOKEN = json.iamToken
+                withCredentials([string(credentialsId: 'yandex-api-key', variable: 'API_KEY')]) {
+                    script {
+                        // Безопасное получение IAM-токена
+                        def response = sh(
+                            script: """
+                                curl -s -d '{"yandexPassportOauthToken": "${env.API_KEY}"}' \
+                                -H "Content-Type: application/json" \
+                                https://iam.api.cloud.yandex.net/iam/v1/tokens
+                            """,
+                            returnStdout: true
+                        )
+                        
+                        // Используем readJSON из Pipeline Utility Steps
+                        def json = readJSON text: response
+                        env.IAM_TOKEN = json.iamToken
+                    }
                 }
             }
         }
@@ -27,7 +32,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    dockerImage = docker.build("${REGISTRY}/${APP_NAME}:${env.GIT_COMMIT}", ".")
+                    docker.build("${REGISTRY}/${APP_NAME}:${env.GIT_COMMIT}", ".")
                 }
             }
         }
@@ -35,9 +40,8 @@ pipeline {
         stage('Push to YCR') {
             steps {
                 script {
-                    // Используем IAM-токен для аутентификации
-                    sh "echo ${env.IAM_TOKEN} | docker login cr.yandex --username iam --password-stdin"
-                    dockerImage.push()
+                    sh(script: "echo ${env.IAM_TOKEN} | docker login cr.yandex --username iam --password-stdin", label: "Login to YCR")
+                    sh "docker push ${REGISTRY}/${APP_NAME}:${env.GIT_COMMIT}"
                 }
             }
         }
