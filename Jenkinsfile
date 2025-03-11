@@ -51,6 +51,16 @@ pipeline {
                 }
             }
         }
+    stage('Kube') {
+            steps {
+                script {
+                                        
+                    sh """
+                       kubectl apply -f ../../Dip3/apps/nginx-app.yaml
+                    """
+                }
+            }
+        }        
     }
 
     post {
