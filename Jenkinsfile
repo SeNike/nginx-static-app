@@ -40,13 +40,13 @@ pipeline {
         stage('Build & Push') {
             steps {
                 script {
-                    docker.build("${REGISTRY}/${APP_NAME}:${env.GIT_COMMIT}", ".")
+                    docker.build("${REGISTRY}/${APP_NAME}:latest", ".")
                     
                     sh """
                         echo '${env.IAM_TOKEN}' | \
                         docker login cr.yandex --username iam --password-stdin
                         
-                        docker push "${REGISTRY}/${APP_NAME}:${env.GIT_COMMIT}"
+                        docker push "${REGISTRY}/${APP_NAME}:latest"
                     """
                 }
             }
