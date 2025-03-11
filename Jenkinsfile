@@ -7,8 +7,8 @@ pipeline {
             type: 'PT_TAG',
             description: 'Выберите тег для сборки',
             tagFilter: 'v*',
-            defaultValue: 'v2.2.8',
-            selectedValue: 'v2.2.8',
+            defaultValue: 'v2.2.9',
+            selectedValue: 'v2.2.9',
             sortMode: 'DESCENDING'
         )
     }
@@ -32,6 +32,15 @@ pipeline {
             }
         }
 
+        stage('Debug Git Tags') {
+            steps {
+                script {
+                    echo "Доступные теги в репозитории:"
+                    sh "git ls-remote --tags ${env.REPO_URL}"
+                }
+            }
+        }
+
         stage('Checkout Code') {
             steps {
                 checkout([
@@ -45,7 +54,7 @@ pipeline {
                     userRemoteConfigs: [[
                         url: env.REPO_URL,
                         credentialsId: 'github-creds',
-                        refspec: "+refs/tags/${env.TAGNAME}:refs/tags/${env.TAGNAME}"
+                        refspec: "+refs/tags/*:refs/tags/*"
                     ]]
                 ])
             }
@@ -82,18 +91,15 @@ pipeline {
         stage('Build & Push') {
             steps {
                 script {
-                    def imageLatest = "${env.REGISTRY}/${env.APP_NAME}:latest"
-                    def imageTag = "${env.REGISTRY}/${env.APP_NAME}:${env.TAGNAME}"
-                    
-                    docker.build(imageLatest, ".")
-                    docker.build(imageTag, ".")
+                    docker.build("${REGISTRY}/${APP_NAME}:latest", ".")
+                    docker.build("${REGISTRY}/${APP_NAME}:${env.TAGNAME}", ".")
                     
                     sh """
                         echo '${env.IAM_TOKEN}' | \
                         docker login cr.yandex --username iam --password-stdin
                         
-                        docker push "${imageTag}"
-                        docker push "${imageLatest}"
+                        docker push "${REGISTRY}/${APP_NAME}:${env.TAGNAME}"
+                        docker push "${REGISTRY}/${APP_NAME}:latest"
                     """
                 }
             }
@@ -103,7 +109,7 @@ pipeline {
             steps {
                 script {
                     sh """
-                        sed -i "s|image:.*|image: ${env.REGISTRY}/${env.APP_NAME}:${env.TAGNAME}|g" nginx-app.yaml
+                        sed -i "s|image:.*|image: ${REGISTRY}/${APP_NAME}:${env.TAGNAME}|g" nginx-app.yaml
                         
                         export KUBECONFIG=/var/lib/jenkins/.kube/config
                         kubectl apply -f nginx-app.yaml
