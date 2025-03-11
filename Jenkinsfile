@@ -6,7 +6,7 @@ pipeline {
             name: 'VERSION',
             type: 'PT_TAG',
             description: 'Выберите тег для сборки',
-            defaultValue: '', // Фикс для требования значения по умолчанию
+            defaultValue: 'origin/main', // Фикс для требования значения по умолчанию
             tagFilter: 'v.*',
             selectedValue: 'DEFAULT',
             sortMode: 'DESCENDING'
