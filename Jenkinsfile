@@ -7,8 +7,8 @@ pipeline {
             type: 'PT_TAG',
             description: 'Выберите тег для сборки',
             tagFilter: 'v*',
-            defaultValue: 'v2.2.10',
-            selectedValue: 'v2.2.10',
+            defaultValue: 'v2.2.11',
+            selectedValue: 'v2.2.11',
             sortMode: 'DESCENDING'
         )
     }
@@ -32,21 +32,8 @@ pipeline {
             }
         }
 
-        stage('Debug Git Tags') {
-            steps {
-                script {
-                    echo "Доступные теги в репозитории:"
-                    sh "git ls-remote --tags ${env.REPO_URL}"
-                }
-            }
-        }
-
         stage('Checkout Code') {
             steps {
-                script {
-                    sh "git fetch --tags --force --progress origin"
-                    echo "Клонируем тег: ${env.TAGNAME}"
-                }
                 checkout([
                     $class: 'GitSCM',
                     branches: [[name: "refs/tags/${env.TAGNAME}"]],
@@ -58,7 +45,7 @@ pipeline {
                     userRemoteConfigs: [[
                         url: env.REPO_URL,
                         credentialsId: 'github-creds',
-                        refspec: "+refs/tags/*:refs/tags/*"
+                        refspec: "+refs/tags/${env.TAGNAME}:refs/tags/${env.TAGNAME}"
                     ]]
                 ])
             }
@@ -75,14 +62,12 @@ pipeline {
                                 https://iam.api.cloud.yandex.net/iam/v1/tokens
                             """,
                             returnStdout: true
-                        ).trim()
-
-                        echo "IAM API Response: ${response}"
-
-                        if (response == "") {
+                        )
+                        
+                        if (response?.trim() == "") {
                             error("Пустой ответ от API")
                         }
-
+                        
                         try {
                             def json = readJSON text: response
                             env.IAM_TOKEN = json.iamToken
@@ -97,13 +82,18 @@ pipeline {
         stage('Build & Push') {
             steps {
                 script {
-                    def image = docker.build("${REGISTRY}/${APP_NAME}:${env.TAGNAME}", ".")
+                    def imageLatest = "${env.REGISTRY}/${env.APP_NAME}:latest"
+                    def imageTag = "${env.REGISTRY}/${env.APP_NAME}:${env.TAGNAME}"
+                    
+                    docker.build(imageLatest, ".")
+                    docker.build(imageTag, ".")
                     
                     sh """
-                        echo '${env.IAM_TOKEN}' | docker login cr.yandex --username iam --password-stdin
-                        docker push "${REGISTRY}/${APP_NAME}:${env.TAGNAME}"
-                        docker tag "${REGISTRY}/${APP_NAME}:${env.TAGNAME}" "${REGISTRY}/${APP_NAME}:latest"
-                        docker push "${REGISTRY}/${APP_NAME}:latest"
+                        echo '${env.IAM_TOKEN}' | \
+                        docker login cr.yandex --username iam --password-stdin
+                        
+                        docker push "${imageTag}"
+                        docker push "${imageLatest}"
                     """
                 }
             }
@@ -113,7 +103,8 @@ pipeline {
             steps {
                 script {
                     sh """
-                        sed -i "s|image:.*|image: ${REGISTRY}/${APP_NAME}:${env.TAGNAME}|g" nginx-app.yaml
+                        sed -i "s|image:.*|image: ${env.REGISTRY}/${env.APP_NAME}:${env.TAGNAME}|g" nginx-app.yaml
+                        
                         export KUBECONFIG=/var/lib/jenkins/.kube/config
                         kubectl apply -f nginx-app.yaml
                     """
