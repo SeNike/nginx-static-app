@@ -6,6 +6,7 @@
 *.tfstate.*
 *.terraform.lock.hcl
 *.crt
+*.bak
 
 # own secret vars store
 personal.auto.tfvars

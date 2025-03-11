@@ -1,5 +1,10 @@
 pipeline {
     agent any
+    properties([
+        pipelineTriggers([
+            [$class: 'GitHubPushTrigger']
+        ])
+    ])
 
     environment {
         REGISTRY = "cr.yandex/crp7mdc71bpnqapssran"
@@ -7,11 +12,26 @@ pipeline {
     }
 
     stages {
+        stage('Check for Tag') {
+            steps {
+                script {
+                    // Получаем текущий тег, если он есть
+                    env.GIT_TAG_NAME = sh(
+                        script: "git describe --tags --exact-match || echo ''",
+                        returnStdout: true
+                    ).trim()
+
+                    if (!env.GIT_TAG_NAME) {
+                        error "Сборка не по тегу. Прерывание пайплайна."
+                    }
+                }
+            }
+        }
+
         stage('Get IAM Token') {
             steps {
                 withCredentials([string(credentialsId: 'yc_cred', variable: 'API_KEY')]) {
                     script {
-                        // Безопасный запрос с корректным JSON
                         def response = sh(
                             script: """
                                 curl -sS -d '{"yandexPassportOauthToken": "${env.API_KEY}"}' \
@@ -21,7 +41,6 @@ pipeline {
                             returnStdout: true
                         )
                         
-                        // Проверка ответа
                         if (response?.trim() == "") {
                             error("Пустой ответ от API")
                         }
@@ -40,13 +59,15 @@ pipeline {
         stage('Build & Push') {
             steps {
                 script {
-                    docker.build("${REGISTRY}/${APP_NAME}:${env.GIT_COMMIT}", ".")
+                    def imageTag = "${REGISTRY}/${APP_NAME}:${env.GIT_TAG_NAME}"
+                    
+                    docker.build(imageTag, ".")
                     
                     sh """
                         echo '${env.IAM_TOKEN}' | \
                         docker login cr.yandex --username iam --password-stdin
                         
-                        docker push "${REGISTRY}/${APP_NAME}:${env.GIT_COMMIT}"
+                        docker push "${imageTag}"
                     """
                 }
             }
@@ -60,7 +81,7 @@ pipeline {
         failure {
             emailext body: "Сборка ${env.JOB_NAME} упала!\nЛоги: ${env.BUILD_URL}console",
                      subject: "FAILED: ${env.JOB_NAME}",
-                     to: 'dev@example.com'
+                     to: 'nsvtemp@gmail.com.com'
         }
     }
 }
