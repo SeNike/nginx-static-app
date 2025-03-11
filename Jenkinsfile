@@ -45,25 +45,6 @@ pipeline {
             }
         }
 
-        stage('Checkout Code') {
-            steps {
-                checkout([
-                    $class: 'GitSCM',
-                    branches: [[name: "refs/tags/${env.TAGNAME}"]],
-                    extensions: [
-                        [$class: 'CloneOption', depth: 1, noTags: false, shallow: true],
-                        [$class: 'PruneStaleBranch'],
-                        [$class: 'CleanBeforeCheckout']
-                    ],
-                    userRemoteConfigs: [[
-                        url: env.REPO_URL,
-                        credentialsId: 'github-creds',
-                        refspec: "+refs/tags/${env.TAGNAME}:refs/tags/${env.TAGNAME}"
-                    ]]
-                ])
-            }
-        }
-
         stage('Get IAM Token') {
             steps {
                 withCredentials([string(credentialsId: 'yc_cred', variable: 'API_KEY')]) {
