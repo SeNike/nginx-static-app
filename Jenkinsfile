@@ -56,7 +56,7 @@ pipeline {
                 script {
                                         
                     sh """
-                       kubectl apply -f nginx-app.yaml
+                       kubectl --kubeconfig=~/.kube/config apply -f nginx-app.yaml
                     """
                 }
             }
