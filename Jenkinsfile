@@ -47,18 +47,13 @@ pipeline {
                         docker login cr.yandex --username iam --password-stdin
                         
                         docker push "${REGISTRY}/${APP_NAME}:${env.GIT_COMMIT}"
-                        export KUBECONFIG=\$(mktemp)
-                        export PATH="/var/lib/jenkins/yandex-cloud/bin:$PATH"
-                        echo '${env.IAM_TOKEN}' | \
-                        yc managed-kubernetes cluster get-credentials catl48ijt3b2ga6l5866 --external --token=${env.IAM_TOKEN}
-                        kubectl apply -f nginx-app.yaml
                     """
                 }
             }
         }
         stage('Kube') {
             steps {
-                withCredentials([string(credentialsId: 'yc_cred', variable: 'API_KEY')]) {
+ 
                     script {
  
                         
@@ -68,9 +63,8 @@ pipeline {
                             kubectl apply -f nginx-app.yaml
                         """
                     }
-                }
             }
-        } 		     
+        } 
     }
 
     post {
