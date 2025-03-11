@@ -118,7 +118,7 @@ pipeline {
     post {
         always {
             sh 'docker logout cr.yandex || true'
-            cleanWs()
+            
         }
     }
 }
