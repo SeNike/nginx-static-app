@@ -1,10 +1,5 @@
 pipeline {
     agent any
-    options {
-        disableConcurrentBuilds()
-        disableResume()
-        durabilityHint('PERFORMANCE_OPTIMIZED')
-    }    
 
     parameters {
         gitParameter(
@@ -12,7 +7,7 @@ pipeline {
             type: 'PT_TAG',
             description: 'Выберите тег для сборки',
             tagFilter: 'v*',
-            defaultValue: 'v2.2.24',
+            defaultValue: 'v2.2.25',
             selectedValue: 'DEFAULT',
             sortMode: 'DESCENDING'
         )
@@ -25,6 +20,19 @@ pipeline {
     }
 
     stages {
+
+        stage('Force Refresh Tags') {
+            steps {
+                script {
+                    sh '''
+                        git fetch --tags --force
+                        git tag -l | xargs git tag -d
+                        git fetch --tags --force
+                    '''
+                }
+            }
+        }
+
         stage('Debug') {
             steps {
                 echo "VERSION from params: ${params.VERSION}"
