@@ -26,16 +26,29 @@ pipeline {
                 ])
 
                 script {
-                    // Определение тега из текущего коммита
+                    // Определение тега из коммита
                     env.TAGNAME = sh(
                         script: 'git describe --tags --exact-match HEAD',
                         returnStdout: true
                     ).trim()
 
                     if (!env.TAGNAME) {
-                        error("Сборка возможна только из тега Git!")
+                        error("🚨 Сборка возможна только из тега Git!")
                     }
                     echo "✅ Используется тег: ${env.TAGNAME}"
+                }
+            }
+        }
+
+        stage('Validate Files') {
+            steps {
+                script {
+                    def requiredFiles = ['Dockerfile', 'nginx.conf', 'index.html', 'nginx-app.yaml']
+                    requiredFiles.each { file ->
+                        if (!fileExists(file)) {
+                            error("🚨 Отсутствует обязательный файл: ${file}")
+                        }
+                    }
                 }
             }
         }
@@ -54,14 +67,14 @@ pipeline {
                         )
 
                         if (response?.trim() == "") {
-                            error("Пустой ответ от API IAM")
+                            error("🚨 Пустой ответ от API IAM")
                         }
 
                         try {
                             def json = readJSON text: response
                             env.IAM_TOKEN = json.iamToken
                         } catch (Exception e) {
-                            error("Ошибка парсинга токена: ${e.message}")
+                            error("🚨 Ошибка парсинга токена: ${e.message}")
                         }
                     }
                 }
@@ -74,11 +87,9 @@ pipeline {
                     def imageLatest = "${env.REGISTRY}/${env.APP_NAME}:latest"
                     def imageTag = "${env.REGISTRY}/${env.APP_NAME}:${env.TAGNAME}"
 
-                    // Сборка образов
                     docker.build(imageLatest, ".")
                     docker.build(imageTag, ".")
 
-                    // Авторизация и пуш
                     sh """
                         echo '${env.IAM_TOKEN}' | \
                         docker login cr.yandex --username iam --password-stdin
@@ -93,10 +104,6 @@ pipeline {
         stage('Kubernetes Deploy') {
             steps {
                 script {
-                    // Проверка существования конфига
-                    sh 'test -f nginx-app.yaml || (echo "❌ Файл nginx-app.yaml не найден!"; exit 1)'
-                    
-                    // Деплой
                     sh """
                         export KUBECONFIG=/var/lib/jenkins/.kube/config
                         kubectl apply -f nginx-app.yaml
@@ -110,12 +117,6 @@ pipeline {
         always {
             sh 'docker logout cr.yandex || true'
             cleanWs()
-        }
-        failure {
-            slackSend(
-                channel: '#ci-alerts',
-                message: "Сборка ${env.JOB_NAME} #${env.BUILD_NUMBER} провалилась: ${env.TAGNAME}"
-            )
         }
     }
 }
