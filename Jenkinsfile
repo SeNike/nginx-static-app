@@ -7,8 +7,8 @@ pipeline {
             type: 'PT_TAG',
             description: 'Выберите тег для сборки',
             tagFilter: 'v*',
-            defaultValue: 'v2.2.6',
-            selectedValue: 'v2.2.6',
+            defaultValue: 'v2.2.7',
+            selectedValue: 'v2.2.7',
             sortMode: 'DESCENDING'
         )
     }
@@ -17,6 +17,7 @@ pipeline {
         REGISTRY = "cr.yandex/crp7mdc71bpnqapssran"
         APP_NAME = "nginx-static-app"
         REPO_URL = "https://github.com/SeNike/nginx-static-app.git"
+        TAGNAME = 'v2.2.7'
     }
 
     stages {
