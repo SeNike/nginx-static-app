@@ -7,7 +7,7 @@ pipeline {
             type: 'PT_TAG',
             description: 'Выберите тег для сборки',
             tagFilter: 'v*',
-            defaultValue: 'v2.0.2',
+            defaultValue: 'origin/main',
             selectedValue: 'DEFAULT',
             sortMode: 'DESCENDING'
         )
@@ -23,7 +23,7 @@ pipeline {
         stage('Pre-check') {
             steps {
                 script {
-                    if (params.VERSION == '') {
+                    if (params.VERSION == 'origin/main') {
                         error("Пожалуйста, выберите тег из списка!")
                     }
                     env.TAG_NAME = params.VERSION.replaceAll('origin/(tags/)?', '')
@@ -43,7 +43,7 @@ pipeline {
                     ],
                     userRemoteConfigs: [[
                         url: env.REPO_URL,
-                        credentialsId: 'github-creds', // Замените на ваши реальные credentials
+                        credentialsId: 'github-creds', // Замените на ваш реальный ID
                         refspec: '+refs/tags/*:refs/remotes/origin/tags/*'
                     ]]
                 ])
@@ -81,8 +81,8 @@ pipeline {
         stage('Build & Push') {
             steps {
                 script {
-                    docker.build("${REGISTRY}/${APP_NAME}:${env.TAG_NAME}", ".")
                     docker.build("${REGISTRY}/${APP_NAME}:latest", ".")
+                    docker.build("${REGISTRY}/${APP_NAME}:${env.TAG_NAME}", ".")
                     
                     sh """
                         echo '${env.IAM_TOKEN}' | \
