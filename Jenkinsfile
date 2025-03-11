@@ -1,18 +1,6 @@
 pipeline {
     agent any
 
-    // parameters {
-    //     gitParameter(
-    //         name: 'VERSION',
-    //         type: 'PT_TAG',
-    //         description: 'Выберите тег для сборки',
-    //         tagFilter: 'v*',
-    //         defaultValue: 'v2.2.25',
-    //         selectedValue: 'DEFAULT',
-    //         sortMode: 'DESCENDING'
-    //     )
-    // }
-
     environment {
         REGISTRY = "cr.yandex/crp7mdc71bpnqapssran"
         APP_NAME = "nginx-static-app"
@@ -20,7 +8,6 @@ pipeline {
     }
 
     stages {
-
         stage('Force Refresh Tags') {
             steps {
                 script {
@@ -33,12 +20,6 @@ pipeline {
             }
         }
 
-        stage('Debug') {
-            steps {
-                echo "VERSION from params: ${params.VERSION}"
-                echo "VERSION from env: ${env.VERSION}"
-            }
-        }        
         stage('Pre-check') {
             steps {
                 script {
@@ -46,7 +27,6 @@ pipeline {
                         error("Пожалуйста, выберите тег из списка!")
                     }
                     env.TAGNAME = params.VERSION.replaceAll('origin/(tags/)?', '')
-                    echo "Выбранный тег: ${env.TAGNAME}"
                 }
             }
         }
@@ -134,12 +114,6 @@ pipeline {
     post {
         always {
             sh 'docker logout cr.yandex'
-        }
-        failure {
-           
-        }
-        success {
-            
         }
     }
 }
