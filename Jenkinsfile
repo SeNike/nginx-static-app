@@ -60,7 +60,7 @@ pipeline {
                         sh """
                             export KUBECONFIG=/var/lib/jenkins/.kube/config
                             export PATH="/var/lib/jenkins/yandex-cloud/bin:$PATH"
-                            kubectl apply -f /home/se/Dip3/apps/nginx-app.yaml
+                            kubectl apply -f nginx-app.yaml
                         """
                     }
             }
