@@ -33,12 +33,12 @@ pipeline {
             }
         }
 
-        stage('Debug') {
-            steps {
-                echo "VERSION from params: ${params.VERSION}"
-                echo "VERSION from env: ${env.VERSION}"
-            }
-        }        
+        // stage('Debug') {
+        //     steps {
+        //         echo "VERSION from params: ${params.VERSION}"
+        //         echo "VERSION from env: ${env.VERSION}"
+        //     }
+        // }        
         stage('Pre-check') {
             steps {
                 script {
