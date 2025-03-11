@@ -105,6 +105,7 @@ pipeline {
             steps {
                 script {
                     sh """
+                    sed -i "s|image:.*|image: ${REGISTRY}/${APP_NAME}:${env.TAG_NAME}|g" nginx-app.yaml
                     export KUBECONFIG=/var/lib/jenkins/.kube/config
                     export PATH="/var/lib/jenkins/yandex-cloud/bin:$PATH"
                     kubectl apply -f nginx-app.yaml
