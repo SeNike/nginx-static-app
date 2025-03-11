@@ -53,7 +53,7 @@ pipeline {
         }
         stage('Kube') {
             steps {
-             
+
                     script {
  
                         
@@ -61,13 +61,13 @@ pipeline {
                             export KUBECONFIG=\$(mktemp)
                             export PATH="/var/lib/jenkins/yandex-cloud/bin:$PATH"
                             echo '${env.IAM_TOKEN}' | \
-                            yc managed-kubernetes cluster get-credentials catl48ijt3b2ga6l5866 --external
+                            yc managed-kubernetes cluster get-credentials catl48ijt3b2ga6l5866 --external --token=${env.IAM_TOKEN}
                             kubectl apply -f nginx-app.yaml
                         """
                     }
-               
+                }
             }
-        } 		     
+        		     
     }
 
     post {
