@@ -7,7 +7,7 @@ pipeline {
             type: 'PT_TAG',
             description: 'Выберите тег для сборки',
             tagFilter: 'v*',
-            defaultValue: 'v2.2.14',
+            defaultValue: 'v2.2.15',
             selectedValue: 'DEFAULT',
             sortMode: 'DESCENDING'
         )
@@ -20,6 +20,12 @@ pipeline {
     }
 
     stages {
+        stage('Debug') {
+            steps {
+                echo "VERSION from params: ${params.VERSION}"
+                echo "VERSION from env: ${env.VERSION}"
+            }
+        }        
         stage('Pre-check') {
             steps {
                 script {
@@ -103,8 +109,6 @@ pipeline {
             steps {
                 script {
                     sh """
-                        
-                        
                         export KUBECONFIG=/var/lib/jenkins/.kube/config
                         kubectl apply -f nginx-app.yaml
                     """
