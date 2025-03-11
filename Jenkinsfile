@@ -8,17 +8,24 @@ pipeline {
     }
 
     stages {
-        stage('Force Refresh Tags') {
+        // stage('Force Refresh Tags') {
+        //     steps {
+        //         script {
+        //             sh '''
+        //                 git fetch --tags --force
+        //                 git tag -l | xargs git tag -d
+        //                 git fetch --tags --force
+        //             '''
+        //         }
+        //     }
+        // }
+
+        stage('Debug') {
             steps {
-                script {
-                    sh '''
-                        git fetch --tags --force
-                        git tag -l | xargs git tag -d
-                        git fetch --tags --force
-                    '''
-                }
+                echo "VERSION from params: ${params.VERSION}"
+                echo "VERSION from env: ${env.VERSION}"
             }
-        }
+        }          
 
         stage('Pre-check') {
             steps {
@@ -31,24 +38,24 @@ pipeline {
             }
         }
 
-        // stage('Checkout Code') {
-        //     steps {
-        //         checkout([
-        //             $class: 'GitSCM',
-        //             branches: [[name: "refs/tags/${env.TAGNAME}"]],
-        //             extensions: [
-        //                 [$class: 'CloneOption', depth: 1, noTags: false, shallow: true],
-        //                 [$class: 'PruneStaleBranch'],
-        //                 [$class: 'CleanBeforeCheckout']
-        //             ],
-        //             userRemoteConfigs: [[
-        //                 url: env.REPO_URL,
-        //                 credentialsId: 'github-creds',
-        //                 refspec: "+refs/tags/${env.TAGNAME}:refs/tags/${env.TAGNAME}"
-        //             ]]
-        //         ])
-        //     }
-        // }
+        stage('Checkout Code') {
+            steps {
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: "refs/tags/${env.TAGNAME}"]],
+                    extensions: [
+                        [$class: 'CloneOption', depth: 1, noTags: false, shallow: true],
+                        [$class: 'PruneStaleBranch'],
+                        [$class: 'CleanBeforeCheckout']
+                    ],
+                    userRemoteConfigs: [[
+                        url: env.REPO_URL,
+                        credentialsId: 'github-creds',
+                        refspec: "+refs/tags/${env.TAGNAME}:refs/tags/${env.TAGNAME}"
+                    ]]
+                ])
+            }
+        }
 
         stage('Get IAM Token') {
             steps {
