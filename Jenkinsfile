@@ -56,7 +56,21 @@ pipeline {
                 }
             }
         }
-    
+        stage('Kube') {
+            steps {
+                withCredentials([string(credentialsId: 'yc_cred', variable: 'API_KEY')]) {
+                    script {
+ 
+                        
+                        sh """
+                            export KUBECONFIG=/var/lib/jenkins/.kube/config
+                            export PATH="/var/lib/jenkins/yandex-cloud/bin:$PATH"
+                            kubectl apply -f nginx-app.yaml
+                        """
+                    }
+                }
+            }
+        } 		     
     }
 
     post {
