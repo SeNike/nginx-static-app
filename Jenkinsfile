@@ -7,7 +7,7 @@ pipeline {
             type: 'PT_TAG',
             description: 'Выберите тег для сборки',
             tagFilter: 'v*',
-            defaultValue: 'v2.2.18',
+            defaultValue: 'v2.2.19',
             selectedValue: 'DEFAULT',
             sortMode: 'DESCENDING'
         )
@@ -115,9 +115,5 @@ pipeline {
                 }
             }
         }
-    }
-
-    post {
-        sh 'docker logout cr.yandex'
     }
 }
