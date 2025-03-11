@@ -19,12 +19,11 @@ pipeline {
         REPO_URL = "https://github.com/SeNike/nginx-static-app.git"
     }
 
-    stages {
         stage('Pre-check') {
             steps {
                 script {
-                    if (params.VERSION == 'origin/main') {
-                        error("Пожалуйста, выберите тег из списка!")
+                    if (!params.VERSION || params.VERSION == 'origin/main') {
+                        error("Пожалуйста, выберите существующий тег, например 'v2.0.8'!")
                     }
                     env.TAG_NAME = params.VERSION.replaceAll('origin/(tags/)?', '')
                 }
