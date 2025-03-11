@@ -7,7 +7,7 @@ pipeline {
             type: 'PT_TAG',
             description: 'Выберите тег для сборки',
             tagFilter: 'v*',
-            defaultValue: 'v2.2.21',
+            defaultValue: 'origin/main',
             selectedValue: 'DEFAULT',
             sortMode: 'DESCENDING'
         )
