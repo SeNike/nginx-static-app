@@ -51,18 +51,6 @@ pipeline {
                 }
             }
         }
-
-        stage('Kuber') {
-            steps {
-                script {
-                      
-                    sh """
-                        kubectl apply -f ../../Dip3/apps/nginx-app.yaml
-                    """
-                }
-            }
-        }
-    }    
     }
 
     post {
@@ -75,7 +63,4 @@ pipeline {
                      to: 'nsvtemp@gmail.com'
         }
     }
-
-
-
 }
