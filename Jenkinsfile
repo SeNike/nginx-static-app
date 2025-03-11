@@ -51,16 +51,31 @@ pipeline {
                 }
             }
         }
-    stage('Kube') {
+        stage('Kube') {
             steps {
-                script {
-                                        
-                    sh """
-                       kubectl --kubeconfig=/home/se/.kube/config apply -f nginx-app.yaml
-                    """
+                withCredentials([string(credentialsId: 'yc_cred', variable: 'API_KEY')]) {
+                    script {
+                        def response = sh(
+                            script: """
+                                curl -sS -d '{"yandexPassportOauthToken": "${env.API_KEY}"}' \
+                                -H "Content-Type: application/json" \
+                                https://iam.api.cloud.yandex.net/iam/v1/tokens
+                            """,
+                            returnStdout: true
+                        ).trim()
+
+                        def json = readJSON text: response
+                        env.IAM_TOKEN = json.iamToken
+                        
+                        sh """
+                            export KUBECONFIG=\$(mktemp)
+                            yc managed-kubernetes cluster get-credentials your-cluster-id --external --token=${env.IAM_TOKEN}
+                            kubectl apply -f nginx-app.yaml
+                        """
+                    }
                 }
             }
-        }        
+        }      
     }
 
     post {
