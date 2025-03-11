@@ -51,14 +51,15 @@ pipeline {
                 }
             }
         }
- stage('Kube') {
+stage('Kube') {
     steps {
-        script {
-            withCredentials([string(credentialsId: 'yc_cred', variable: 'API_KEY')]) {
+        withCredentials([string(credentialsId: 'yc_cred', variable: 'API_KEY')]) {
+            script {
                 sh """
                     export KUBECONFIG=\$(mktemp)
-                    export PATH="/var/lib/jenkins/yandex-cloud/bin:\$PATH"
-                    yc managed-kubernetes cluster get-credentials your-actual-cluster-id --external --token=${env.IAM_TOKEN}
+                    export PATH="/var/lib/jenkins/yandex-cloud/bin:$PATH"
+                    export YC_TOKEN=${env.IAM_TOKEN}
+                    yc managed-kubernetes cluster get-credentials catl48ijt3b2ga6l5866 --external
                     kubectl apply -f nginx-app.yaml
                 """
             }
