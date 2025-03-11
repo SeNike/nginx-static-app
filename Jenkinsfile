@@ -6,8 +6,10 @@ pipeline {
             name: 'VERSION',
             type: 'PT_TAG',
             description: 'Выберите тег для сборки',
-            defaultValue: '',
-            tagFilter: 'v.*'
+            defaultValue: 'origin/main', // Фикс для требования значения по умолчанию
+            tagFilter: 'v.*',
+            selectedValue: 'DEFAULT',
+            sortMode: 'DESCENDING'
         )
     }
 
@@ -17,15 +19,16 @@ pipeline {
     }
 
     stages {
-        stage('Verify Tag') {
+        stage('Pre-check') {
             steps {
                 script {
-                    if (!params.VERSION) {
-                        error("Тег не выбран! Пожалуйста, укажите версию для сборки.")
+                    // Проверяем что выбранный тег существует
+                    if (params.VERSION == 'origin/main' || !params.VERSION) {
+                        error("Пожалуйста, выберите существующий тег из списка!")
                     }
-                    if (!params.VERSION.startsWith('v')) {
-                        error("Некорректный формат тега. Тег должен начинаться с 'v' (например: v1.0.0)")
-                    }
+                    
+                    // Убираем префикс origin/ если есть
+                    env.TAG_NAME = params.VERSION.replaceFirst('origin/', '')
                 }
             }
         }
@@ -34,9 +37,14 @@ pipeline {
             steps {
                 checkout([
                     $class: 'GitSCM',
-                    branches: [[name: "refs/tags/${params.VERSION}"]],
-                    extensions: [],
-                    userRemoteConfigs: [[url: 'URL_ВАШЕГО_РЕПОЗИТОРИЯ']]
+                    branches: [[name: "refs/tags/${env.TAG_NAME}"]],
+                    extensions: [
+                        [$class: 'CloneOption', depth: 1, noTags: false, shallow: true]
+                    ],
+                    userRemoteConfigs: [[
+                        url: 'URL_ВАШЕГО_РЕПОЗИТОРИЯ',
+                        credentialsId: 'ВАШ_CREDENTIALS_ID'
+                    ]]
                 ])
             }
         }
