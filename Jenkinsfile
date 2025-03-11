@@ -8,40 +8,35 @@ pipeline {
     }
 
     stages {
-        stage('Extract Git Tag') {
-            steps {
-                script {
-                    // Определяем текущий тег Git
-                    env.TAGNAME = sh(
-                        script: 'git describe --tags --exact-match 2>/dev/null || echo "unknown"',
-                        returnStdout: true
-                    ).trim()
-                    
-                    if (env.TAGNAME == "unknown") {
-                        error("Сборка возможна только из тега Git!")
-                    }
-                    
-                    echo "Используется тег: ${env.TAGNAME}"
-                }
-            }
-        }
-
         stage('Checkout Code') {
             steps {
                 checkout([
                     $class: 'GitSCM',
-                    branches: [[name: "refs/tags/${env.TAGNAME}"]],
+                    branches: [[name: 'refs/tags/*']],
                     extensions: [
-                        [$class: 'CloneOption', depth: 0, noTags: false, shallow: true],
+                        [$class: 'CloneOption', depth: 0, noTags: false, shallow: false],
                         [$class: 'PruneStaleBranch'],
                         [$class: 'CleanBeforeCheckout']
                     ],
                     userRemoteConfigs: [[
                         url: env.REPO_URL,
                         credentialsId: 'github-creds',
-                        refspec: "+refs/tags/${env.TAGNAME}:refs/tags/${env.TAGNAME}"
+                        refspec: '+refs/tags/*:refs/tags/*'
                     ]]
                 ])
+
+                script {
+                    // Определение тега из текущего коммита
+                    env.TAGNAME = sh(
+                        script: 'git describe --tags --exact-match HEAD',
+                        returnStdout: true
+                    ).trim()
+
+                    if (!env.TAGNAME) {
+                        error("Сборка возможна только из тега Git!")
+                    }
+                    echo "✅ Используется тег: ${env.TAGNAME}"
+                }
             }
         }
 
@@ -51,22 +46,22 @@ pipeline {
                     script {
                         def response = sh(
                             script: """
-                                curl -sS -d '{"yandexPassportOauthToken": "${env.API_KEY}"}' \
+                                curl -sS -d '{"yandexPassportOauthToken": "${API_KEY}"}' \
                                 -H "Content-Type: application/json" \
                                 https://iam.api.cloud.yandex.net/iam/v1/tokens
                             """,
                             returnStdout: true
                         )
-                        
+
                         if (response?.trim() == "") {
-                            error("Пустой ответ от API")
+                            error("Пустой ответ от API IAM")
                         }
-                        
+
                         try {
                             def json = readJSON text: response
                             env.IAM_TOKEN = json.iamToken
                         } catch (Exception e) {
-                            error("Ошибка парсинга JSON: ${e.message}\nОтвет сервера: ${response}")
+                            error("Ошибка парсинга токена: ${e.message}")
                         }
                     }
                 }
@@ -78,10 +73,12 @@ pipeline {
                 script {
                     def imageLatest = "${env.REGISTRY}/${env.APP_NAME}:latest"
                     def imageTag = "${env.REGISTRY}/${env.APP_NAME}:${env.TAGNAME}"
-                    
+
+                    // Сборка образов
                     docker.build(imageLatest, ".")
                     docker.build(imageTag, ".")
-                    
+
+                    // Авторизация и пуш
                     sh """
                         echo '${env.IAM_TOKEN}' | \
                         docker login cr.yandex --username iam --password-stdin
@@ -93,13 +90,16 @@ pipeline {
             }
         }
 
-        stage('Kube') {
+        stage('Kubernetes Deploy') {
             steps {
                 script {
+                    // Проверка существования конфига
+                    sh 'test -f nginx-app.yaml || (echo "❌ Файл nginx-app.yaml не найден!"; exit 1)'
+                    
+                    // Деплой
                     sh """
-                    export KUBECONFIG=/var/lib/jenkins/.kube/config
-                    export PATH="/var/lib/jenkins/yandex-cloud/bin:$PATH"
-                    kubectl apply -f nginx-app.yaml
+                        export KUBECONFIG=/var/lib/jenkins/.kube/config
+                        kubectl apply -f nginx-app.yaml
                     """
                 }
             }
@@ -108,7 +108,14 @@ pipeline {
 
     post {
         always {
-            sh 'docker logout cr.yandex'
+            sh 'docker logout cr.yandex || true'
+            cleanWs()
+        }
+        failure {
+            slackSend(
+                channel: '#ci-alerts',
+                message: "Сборка ${env.JOB_NAME} #${env.BUILD_NUMBER} провалилась: ${env.TAGNAME}"
+            )
         }
     }
 }
