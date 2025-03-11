@@ -7,7 +7,7 @@ pipeline {
             type: 'PT_TAG',
             description: 'Выберите тег для сборки',
             tagFilter: 'v*',
-            defaultValue: 'v2.2.13',
+            defaultValue: 'v2.2.14',
             selectedValue: 'DEFAULT',
             sortMode: 'DESCENDING'
         )
@@ -103,7 +103,7 @@ pipeline {
             steps {
                 script {
                     sh """
-                        sed -i "s|image:.*|image: ${env.REGISTRY}/${env.APP_NAME}:${env.TAGNAME}|g" nginx-app.yaml
+                        
                         
                         export KUBECONFIG=/var/lib/jenkins/.kube/config
                         kubectl apply -f nginx-app.yaml
