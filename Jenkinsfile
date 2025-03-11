@@ -37,36 +37,6 @@ pipeline {
             }
         }
 
-        stage('Get IAM kube Token') {
-            steps {
-                withCredentials([string(credentialsId: 'kube-cred', variable: 'API_KEY')]) {
-                    script {
-                        // Безопасный запрос с корректным JSON
-                        def response = sh(
-                            script: """
-                                curl -sS -d '{"yandexPassportOauthToken": "${env.API_KEY}"}' \
-                                -H "Content-Type: application/json" \
-                                https://iam.api.cloud.yandex.net/iam/v1/tokens
-                            """,
-                            returnStdout: true
-                        )
-                        
-                        // Проверка ответа
-                        if (response?.trim() == "") {
-                            error("Пустой ответ от API")
-                        }
-                        
-                        try {
-                            def json = readJSON text: response
-                            env.KUBE_TOKEN = json.iamToken
-                        } catch (Exception e) {
-                            error("Ошибка парсинга JSON: ${e.message}\nОтвет сервера: ${response}")
-                        }
-                    }
-                }
-            }
-        }        
-
         stage('Build & Push') {
             steps {
                 script {
@@ -77,27 +47,16 @@ pipeline {
                         docker login cr.yandex --username iam --password-stdin
                         
                         docker push "${REGISTRY}/${APP_NAME}:${env.GIT_COMMIT}"
+                        export KUBECONFIG=\$(mktemp)
+                        export PATH="/var/lib/jenkins/yandex-cloud/bin:$PATH"
+                        echo '${env.IAM_TOKEN}' | \
+                        yc managed-kubernetes cluster get-credentials catl48ijt3b2ga6l5866 --external --token=${env.IAM_TOKEN}
+                        kubectl apply -f nginx-app.yaml
                     """
                 }
             }
         }
-        stage('Kube') {
-            steps {
-
-                    script {
- 
-                        
-                        sh """
-                            export KUBECONFIG=\$(mktemp)
-                            export PATH="/var/lib/jenkins/yandex-cloud/bin:$PATH"
-                            echo '${env.KUBE_TOKEN}' | \
-                            yc managed-kubernetes cluster get-credentials catl48ijt3b2ga6l5866 --external --token=${env.KUBE_TOKEN}
-                            kubectl apply -f nginx-app.yaml
-                        """
-                    }
-                }
-            }
-        		     
+    
     }
 
     post {
