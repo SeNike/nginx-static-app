@@ -23,7 +23,7 @@ pipeline {
         stage('Pre-check') {
             steps {
                 script {
-                    if (params.VERSION == 'origin/main') {
+                    if (params.VERSION == '') {
                         error("Пожалуйста, выберите тег из списка!")
                     }
                     env.TAG_NAME = params.VERSION.replaceAll('origin/(tags/)?', '')
