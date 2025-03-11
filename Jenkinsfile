@@ -1,10 +1,5 @@
 pipeline {
     agent any
-    options([
-        pipelineTriggers([
-            [$class: 'GitHubPushTrigger']
-        ])
-    ])
 
     environment {
         REGISTRY = "cr.yandex/crp7mdc71bpnqapssran"
