@@ -8,40 +8,37 @@ pipeline {
     }
 
     stages {
-        stage('Extract Git Tag') {
-            steps {
-                script {
-                    // Определяем текущий тег Git
-                    env.TAGNAME = sh(
-                        script: 'git describe --tags --exact-match 2>/dev/null || echo "unknown"',
-                        returnStdout: true
-                    ).trim()
-                    
-                    if (env.TAGNAME == "unknown") {
-                        error("Сборка возможна только из тега Git!")
-                    }
-                    
-                    echo "Используется тег: ${env.TAGNAME}"
-                }
-            }
-        }
-
         stage('Checkout Code') {
             steps {
                 checkout([
                     $class: 'GitSCM',
-                    branches: [[name: "refs/tags/${env.TAGNAME}"]],
+                    branches: [[name: 'refs/tags/*']],
                     extensions: [
-                        [$class: 'CloneOption', depth: 1, noTags: false, shallow: true],
+                        [$class: 'CloneOption', depth: 0, noTags: false, shallow: false],
                         [$class: 'PruneStaleBranch'],
                         [$class: 'CleanBeforeCheckout']
                     ],
                     userRemoteConfigs: [[
                         url: env.REPO_URL,
-                        credentialsId: 'github-creds',
-                        refspec: "+refs/tags/${env.TAGNAME}:refs/tags/${env.TAGNAME}"
+                        credentialsId: 'github-creds' // Убедитесь, что credentials существуют
                     ]]
                 ])
+            }
+        }
+
+        stage('Extract Git Tag') {
+            steps {
+                script {
+                    env.TAGNAME = sh(
+                        script: 'git describe --tags --exact-match HEAD',
+                        returnStdout: true
+                    ).trim()
+                    
+                    if (!env.TAGNAME) {
+                        error("Сборка возможна только из тега Git!")
+                    }
+                    echo "Используется тег: ${env.TAGNAME}"
+                }
             }
         }
 
