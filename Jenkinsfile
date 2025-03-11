@@ -7,7 +7,7 @@ pipeline {
             type: 'PT_TAG',
             description: 'Выберите тег для сборки',
             tagFilter: 'v*',
-            defaultValue: 'v2.2.19',
+            defaultValue: 'v2.2.20',
             selectedValue: 'DEFAULT',
             sortMode: 'DESCENDING'
         )
@@ -114,6 +114,22 @@ pipeline {
                     """
                 }
             }
+        }
+    }
+
+    post {
+        always {
+            sh 'docker logout cr.yandex'
+        }
+        failure {
+            emailext body: "Сборка ${env.JOB_NAME} упала!\nВерсия: ${env.TAGNAME}\nЛоги: ${env.BUILD_URL}console",
+                     subject: "FAILED: ${env.JOB_NAME} [${env.TAGNAME}]",
+                     to: 'nsvtemp@gmail.com'
+        }
+        success {
+            emailext body: "Сборка ${env.JOB_NAME} успешно завершена!\nВерсия: ${env.TAGNAME}\nЛоги: ${env.BUILD_URL}console",
+                     subject: "SUCCESS: ${env.JOB_NAME} [${env.TAGNAME}]",
+                     to: 'nsvtemp@gmail.com'
         }
     }
 }
