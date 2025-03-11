@@ -33,12 +33,12 @@ pipeline {
             }
         }
 
-        // stage('Debug') {
-        //     steps {
-        //         echo "VERSION from params: ${params.VERSION}"
-        //         echo "VERSION from env: ${env.VERSION}"
-        //     }
-        // }        
+        stage('Debug') {
+            steps {
+                echo "VERSION from params: ${params.VERSION}"
+                echo "VERSION from env: ${env.VERSION}"
+            }
+        }        
         stage('Pre-check') {
             steps {
                 script {
@@ -136,14 +136,10 @@ pipeline {
             sh 'docker logout cr.yandex'
         }
         failure {
-            emailext body: "Сборка ${env.JOB_NAME} упала!\nВерсия: ${env.TAGNAME}\nЛоги: ${env.BUILD_URL}console",
-                     subject: "FAILED: ${env.JOB_NAME} [${env.TAGNAME}]",
-                     to: 'nsvtemp@gmail.com'
+           
         }
         success {
-            emailext body: "Сборка ${env.JOB_NAME} успешно завершена!\nВерсия: ${env.TAGNAME}\nЛоги: ${env.BUILD_URL}console",
-                     subject: "SUCCESS: ${env.JOB_NAME} [${env.TAGNAME}]",
-                     to: 'nsvtemp@gmail.com'
+            
         }
     }
 }
