@@ -1,5 +1,10 @@
 pipeline {
     agent any
+    options {
+        disableConcurrentBuilds()
+        disableResume()
+        durabilityHint('PERFORMANCE_OPTIMIZED')
+    }    
 
     parameters {
         gitParameter(
@@ -7,7 +12,7 @@ pipeline {
             type: 'PT_TAG',
             description: 'Выберите тег для сборки',
             tagFilter: 'v*',
-            defaultValue: 'v2.2.23',
+            defaultValue: 'v2.2.24',
             selectedValue: 'DEFAULT',
             sortMode: 'DESCENDING'
         )
