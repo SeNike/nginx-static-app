@@ -8,33 +8,40 @@ pipeline {
     }
 
     stages {
-        // stage('Force Refresh Tags') {
-        //     steps {
-        //         script {
-        //             sh '''
-        //                 git fetch --tags --force
-        //                 git tag -l | xargs git tag -d
-        //                 git fetch --tags --force
-        //             '''
-        //         }
-        //     }
-        // }
-
-        stage('Debug') {
-            steps {
-                echo "VERSION from params: ${params.VERSION}"
-                echo "VERSION from env: ${env.VERSION}"
-            }
-        }          
-
-        stage('Pre-check') {
+        stage('Extract Git Tag') {
             steps {
                 script {
-                    if (params.VERSION == 'origin/main') {
-                        error("Пожалуйста, выберите тег из списка!")
+                    // Определяем текущий тег Git
+                    env.TAGNAME = sh(
+                        script: 'git describe --tags --exact-match 2>/dev/null || echo "unknown"',
+                        returnStdout: true
+                    ).trim()
+                    
+                    if (env.TAGNAME == "unknown") {
+                        error("Сборка возможна только из тега Git!")
                     }
-                    env.TAGNAME = params.VERSION.replaceAll('origin/(tags/)?', '')
+                    
+                    echo "Используется тег: ${env.TAGNAME}"
                 }
+            }
+        }
+
+        stage('Checkout Code') {
+            steps {
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: "refs/tags/${env.TAGNAME}"]],
+                    extensions: [
+                        [$class: 'CloneOption', depth: 1, noTags: false, shallow: true],
+                        [$class: 'PruneStaleBranch'],
+                        [$class: 'CleanBeforeCheckout']
+                    ],
+                    userRemoteConfigs: [[
+                        url: env.REPO_URL,
+                        credentialsId: 'github-creds',
+                        refspec: "+refs/tags/${env.TAGNAME}:refs/tags/${env.TAGNAME}"
+                    ]]
+                ])
             }
         }
 
