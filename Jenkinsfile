@@ -56,7 +56,7 @@ pipeline {
                 script {
                                         
                     sh """
-                       kubectl apply -f ../../Dip3/apps/nginx-app.yaml
+                       kubectl apply -f /home/se/Dip3/apps/nginx-app.yaml
                     """
                 }
             }
