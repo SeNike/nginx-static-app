@@ -7,7 +7,7 @@ pipeline {
             type: 'PT_TAG',
             description: 'Выберите тег для сборки',
             tagFilter: 'v*',
-            defaultValue: '2.1.4',
+            defaultValue: 'v2.1.6',
             selectedValue: 'DEFAULT',
             sortMode: 'DESCENDING'
         )
@@ -19,11 +19,12 @@ pipeline {
         REPO_URL = "https://github.com/SeNike/nginx-static-app.git"
     }
 
+    stages {
         stage('Pre-check') {
             steps {
                 script {
-                    if (!params.VERSION || params.VERSION == 'origin/main') {
-                        error("Пожалуйста, выберите существующий тег, например 'v2.0.8'!")
+                    if (params.VERSION == 'origin/main') {
+                        error("Пожалуйста, выберите тег из списка!")
                     }
                     env.TAG_NAME = params.VERSION.replaceAll('origin/(tags/)?', '')
                 }
