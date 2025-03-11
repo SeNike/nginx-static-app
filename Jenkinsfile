@@ -69,7 +69,7 @@ pipeline {
                         
                         sh """
                             export KUBECONFIG=\$(mktemp)
-                            export PATH="/home/se/yandex-cloud/bin:$PATH"
+                            export PATH="/var/lib/jenkins/yandex-cloud/bin:$PATH"
                             yc managed-kubernetes cluster get-credentials your-cluster-id --external --token=${env.IAM_TOKEN}
                             kubectl apply -f nginx-app.yaml
                         """
