@@ -6,8 +6,8 @@ pipeline {
             name: 'VERSION',
             type: 'PT_TAG',
             description: 'Выберите тег для сборки',
-            defaultValue: 'origin/main', // Фикс для требования значения по умолчанию
-            tagFilter: 'v.*',
+            tagFilter: 'v*',
+            defaultValue: 'origin/main',
             selectedValue: 'DEFAULT',
             sortMode: 'DESCENDING'
         )
@@ -16,19 +16,17 @@ pipeline {
     environment {
         REGISTRY = "cr.yandex/crp7mdc71bpnqapssran"
         APP_NAME = "nginx-static-app"
+        REPO_URL = "https://github.com/SeNike/nginx-static-app.git"
     }
 
     stages {
         stage('Pre-check') {
             steps {
                 script {
-                    // Проверяем что выбранный тег существует
-                    if (params.VERSION == 'origin/main' || !params.VERSION) {
-                        error("Пожалуйста, выберите существующий тег из списка!")
+                    if (params.VERSION == 'origin/main') {
+                        error("Пожалуйста, выберите тег из списка!")
                     }
-                    
-                    // Убираем префикс origin/ если есть
-                    env.TAG_NAME = params.VERSION.replaceFirst('origin/', '')
+                    env.TAG_NAME = params.VERSION.replaceAll('origin/(tags/)?', '')
                 }
             }
         }
@@ -39,11 +37,14 @@ pipeline {
                     $class: 'GitSCM',
                     branches: [[name: "refs/tags/${env.TAG_NAME}"]],
                     extensions: [
-                        [$class: 'CloneOption', depth: 1, noTags: false, shallow: true]
+                        [$class: 'CloneOption', depth: 1, noTags: false, shallow: true],
+                        [$class: 'PruneStaleBranch'],
+                        [$class: 'CleanBeforeCheckout']
                     ],
                     userRemoteConfigs: [[
-                        url: 'URL_ВАШЕГО_РЕПОЗИТОРИЯ',
-                        credentialsId: 'ВАШ_CREDENTIALS_ID'
+                        url: env.REPO_URL,
+                        credentialsId: 'github-creds', // Замените на ваши реальные credentials
+                        refspec: '+refs/tags/*:refs/remotes/origin/tags/*'
                     ]]
                 ])
             }
@@ -80,18 +81,14 @@ pipeline {
         stage('Build & Push') {
             steps {
                 script {
-                    // Собираем образ с версией из тега
-                    docker.build("${REGISTRY}/${APP_NAME}:${params.VERSION}", ".")
-                    
-                    // Дополнительно помечаем как latest
+                    docker.build("${REGISTRY}/${APP_NAME}:${env.TAG_NAME}", ".")
                     docker.build("${REGISTRY}/${APP_NAME}:latest", ".")
                     
                     sh """
                         echo '${env.IAM_TOKEN}' | \
                         docker login cr.yandex --username iam --password-stdin
                         
-                        # Пушим обе версии
-                        docker push "${REGISTRY}/${APP_NAME}:${params.VERSION}"
+                        docker push "${REGISTRY}/${APP_NAME}:${env.TAG_NAME}"
                         docker push "${REGISTRY}/${APP_NAME}:latest"
                     """
                 }
@@ -101,12 +98,10 @@ pipeline {
         stage('Kube') {
             steps {
                 script {
-                    // Обновляем манифест с актуальной версией
                     sh """
-                        sed -i "s|image:.*|image: ${REGISTRY}/${APP_NAME}:${params.VERSION}|g" nginx-app.yaml
+                        sed -i "s|image:.*|image: ${REGISTRY}/${APP_NAME}:${env.TAG_NAME}|g" nginx-app.yaml
                         
                         export KUBECONFIG=/var/lib/jenkins/.kube/config
-                        export PATH="/var/lib/jenkins/yandex-cloud/bin:$PATH"
                         kubectl apply -f nginx-app.yaml
                     """
                 }
@@ -119,13 +114,13 @@ pipeline {
             sh 'docker logout cr.yandex'
         }
         failure {
-            emailext body: "Сборка ${env.JOB_NAME} упала!\nВерсия: ${params.VERSION}\nЛоги: ${env.BUILD_URL}console",
-                     subject: "FAILED: ${env.JOB_NAME} [${params.VERSION}]",
+            emailext body: "Сборка ${env.JOB_NAME} упала!\nВерсия: ${env.TAG_NAME}\nЛоги: ${env.BUILD_URL}console",
+                     subject: "FAILED: ${env.JOB_NAME} [${env.TAG_NAME}]",
                      to: 'nsvtemp@gmail.com'
         }
         success {
-            emailext body: "Сборка ${env.JOB_NAME} успешно завершена!\nВерсия: ${params.VERSION}\nЛоги: ${env.BUILD_URL}console",
-                     subject: "SUCCESS: ${env.JOB_NAME} [${params.VERSION}]",
+            emailext body: "Сборка ${env.JOB_NAME} успешно завершена!\nВерсия: ${env.TAG_NAME}\nЛоги: ${env.BUILD_URL}console",
+                     subject: "SUCCESS: ${env.JOB_NAME} [${env.TAG_NAME}]",
                      to: 'nsvtemp@gmail.com'
         }
     }
