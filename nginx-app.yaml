@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: nginx
-        image: cr.yandex/crp7mdc71bpnqapssran/nginx-static-app:latest
+        image: cr.yandex/crpoa9bq12dseorjv6jl/nginx-static-app:latest
         ports:
         - containerPort: 80
 ---
