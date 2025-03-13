@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = "cr.yandex/crp7mdc71bpnqapssran"
+        REGISTRY = "cr.yandex/crpoa9bq12dseorjv6jl"
         APP_NAME = "nginx-static-app"
         REPO_URL = "https://github.com/SeNike/nginx-static-app.git"
     }
