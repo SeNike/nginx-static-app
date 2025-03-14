@@ -91,11 +91,13 @@ pipeline {
                     docker.build(imageTag, ".")
 
                     sh """
+                        set +x
                         echo '${env.IAM_TOKEN}' | \
                         docker login cr.yandex --username iam --password-stdin
                         
                         docker push "${imageTag}"
                         docker push "${imageLatest}"
+                        set +x
                     """
                 }
             }
