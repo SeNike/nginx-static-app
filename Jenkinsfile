@@ -109,6 +109,7 @@ pipeline {
                     sh """
                     sed -i "s|image:.*|image: ${REGISTRY}/${APP_NAME}:${env.TAGNAME}|g" nginx-app.yaml
                     export PATH="/var/lib/jenkins/yandex-cloud/bin:$PATH"
+                    export PATH="/var/lib/jenkins:$PATH"
                     kubectl apply -f nginx-app.yaml
                     """
                 }
