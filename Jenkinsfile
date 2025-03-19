@@ -10,32 +10,15 @@ pipeline {
     stages {
         stage('Checkout Code') {
             steps {
-                checkout([
-                    $class: 'GitSCM',
-                    branches: [[name: 'refs/tags/*']],
-                    extensions: [
-                        [$class: 'CloneOption', depth: 0, noTags: false, shallow: false],
-                        [$class: 'PruneStaleBranch'],
-                        [$class: 'CleanBeforeCheckout']
-                    ],
-                    userRemoteConfigs: [[
-                        url: env.REPO_URL,
-                        credentialsId: 'github-creds',
-                        refspec: '+refs/tags/*:refs/tags/*'
-                    ]]
-                ])
+                checkout scm
 
                 script {
-                    // Определение тега из коммита
                     env.TAGNAME = sh(
-                        script: 'git describe --tags --exact-match HEAD',
+                        script: 'git describe --tags --exact-match HEAD || echo ""',
                         returnStdout: true
                     ).trim()
-
-                    if (!env.TAGNAME) {
-                        error("🚨 Сборка возможна только из тега Git!")
-                    }
-                    echo "✅ Используется тег: ${env.TAGNAME}"
+                    
+                    echo env.TAGNAME ? "✅ Используется тег: ${env.TAGNAME}" : "ℹ️ Сборка без тега, используем latest"
                 }
             }
         }
@@ -65,7 +48,7 @@ pipeline {
                             """,
                             returnStdout: true
                         )
-
+                        
                         if (response?.trim() == "") {
                             error("🚨 Пустой ответ от API IAM")
                         }
@@ -84,19 +67,15 @@ pipeline {
         stage('Build & Push') {
             steps {
                 script {
-                    def imageLatest = "${env.REGISTRY}/${env.APP_NAME}:latest"
-                    def imageTag = "${env.REGISTRY}/${env.APP_NAME}:${env.TAGNAME}"
+                    def imageTag = env.TAGNAME ? "${env.REGISTRY}/${env.APP_NAME}:${env.TAGNAME}" : "${env.REGISTRY}/${env.APP_NAME}:latest"
 
-                    docker.build(imageLatest, ".")
                     docker.build(imageTag, ".")
-
+                    
                     sh """
                         set +x
                         echo '${env.IAM_TOKEN}' | \
                         docker login cr.yandex --username iam --password-stdin
-                        
                         docker push "${imageTag}"
-                        docker push "${imageLatest}"
                         set +x
                     """
                 }
@@ -104,6 +83,9 @@ pipeline {
         }
 
         stage('Kubernetes Deploy') {
+            when {
+                expression { env.TAGNAME != null && env.TAGNAME != "" }
+            }
             steps {
                 script {
                     sh """
@@ -119,7 +101,6 @@ pipeline {
     post {
         always {
             sh 'docker logout cr.yandex || true'
-            
         }
     }
 }
