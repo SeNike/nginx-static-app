@@ -10,19 +10,30 @@ pipeline {
     stages {
         stage('Checkout Code') {
             steps {
-                checkout scm
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: '*/main']],  // Разрешаем сборку из main и любых коммитов
+                    extensions: [
+                        [$class: 'CloneOption', depth: 1, noTags: false, shallow: true],
+                        [$class: 'PruneStaleBranch'],
+                        [$class: 'CleanBeforeCheckout']
+                    ],
+                    userRemoteConfigs: [[
+                        url: env.REPO_URL,
+                        credentialsId: 'github-creds'
+                    ]]
+                ])
 
                 script {
                     env.TAGNAME = sh(
                         script: 'git describe --tags --exact-match HEAD || echo ""',
                         returnStdout: true
                     ).trim()
-                    
                     echo env.TAGNAME ? "✅ Используется тег: ${env.TAGNAME}" : "ℹ️ Сборка без тега, используем latest"
                 }
             }
         }
-        
+
 
         stage('Validate Files') {
             steps {
