@@ -47,6 +47,7 @@ pipeline {
             }
         }
 
+
         stage('Get IAM Token') {
             steps {
                 withCredentials([string(credentialsId: 'yc_cred', variable: 'API_KEY')]) {
