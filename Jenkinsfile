@@ -23,7 +23,6 @@ pipeline {
                         credentialsId: 'github-creds'
                     ]]
                 ])
-
                 script {
                     env.TAGNAME = sh(
                         script: 'git describe --tags --exact-match HEAD || echo ""',
@@ -33,7 +32,6 @@ pipeline {
                 }
             }
         }
-
 
         stage('Validate Files') {
             steps {
